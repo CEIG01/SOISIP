@@ -1,0 +1,11 @@
+[build]
+  command = "python generate_house.py"
+  publish = "."
+
+[build.environment]
+  PYTHON_VERSION = "3.12"
+
+[[headers]]
+  for = "/*.usdz"
+  [headers.values]
+    Content-Type = "model/vnd.usdz+zip"

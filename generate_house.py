@@ -1,0 +1,197 @@
+import zipfile
+import os
+
+def make_cube(name, x0, y0, z0, dx, dy, dz, material_path):
+    cx = x0 + dx / 2.0
+    cy = y0 + dy / 2.0
+    cz = z0 + dz / 2.0
+    sx = dx / 2.0
+    sy = dy / 2.0
+    sz = dz / 2.0
+    return f"""    def Cube "{name}"
+    {{
+        double3 xformOp:translate = ({cx:.4f}, {cy:.4f}, {cz:.4f})
+        double3 xformOp:scale = ({sx:.4f}, {sy:.4f}, {sz:.4f})
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+        rel material:binding = <{material_path}>
+    }}
+"""
+
+def generate_model():
+    usda_header = """#usda 1.0
+(
+    defaultPrim = "House"
+    metersPerUnit = 1.0
+    upAxis = "Y"
+)
+
+def Xform "House"
+{
+    def "Materials"
+    {
+        def Material "ConcreteMat"
+        {
+            token outputs:surface.connect = </House/Materials/ConcreteMat/PbrPreview.outputs:surface>
+            def Shader "PbrPreview"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.58, 0.58, 0.58)
+                float inputs:roughness = 0.8
+                float inputs:metallic = 0.0
+                token outputs:surface
+            }
+        }
+        def Material "GlassMat"
+        {
+            token outputs:surface.connect = </House/Materials/GlassMat/PbrPreview.outputs:surface>
+            def Shader "PbrPreview"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.75, 0.88, 0.95)
+                float inputs:roughness = 0.05
+                float inputs:opacity = 0.25
+                float inputs:ior = 1.5
+                token outputs:surface
+            }
+        }
+        def Material "FrameMat"
+        {
+            token outputs:surface.connect = </House/Materials/FrameMat/PbrPreview.outputs:surface>
+            def Shader "PbrPreview"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.15, 0.15, 0.15)
+                float inputs:roughness = 0.4
+                float inputs:metallic = 0.7
+                token outputs:surface
+            }
+        }
+        def Material "StairMat"
+        {
+            token outputs:surface.connect = </House/Materials/StairMat/PbrPreview.outputs:surface>
+            def Shader "PbrPreview"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.52, 0.52, 0.52)
+                float inputs:roughness = 0.85
+                float inputs:metallic = 0.0
+                token outputs:surface
+            }
+        }
+    }
+"""
+
+    cubes = []
+
+    # Ground Plane
+    cubes.append(make_cube("GroundPlane", -3.0, -0.05, -3.0, 18.0, 0.05, 10.0, "/House/Materials/ConcreteMat"))
+
+    # Floors and Steps
+    cubes.append(make_cube("Floor_Living", 0.0, 0.0, 0.0, 4.0, 0.50, 4.0, "/House/Materials/ConcreteMat"))
+    cubes.append(make_cube("Step_Int_1", 4.0, 0.0, 0.0, 0.15, 0.63, 4.0, "/House/Materials/ConcreteMat"))
+    cubes.append(make_cube("Step_Int_2", 4.15, 0.0, 0.0, 0.15, 0.77, 4.0, "/House/Materials/ConcreteMat"))
+    cubes.append(make_cube("Floor_Bed_Dress", 4.30, 0.0, 0.0, 7.70, 0.90, 4.0, "/House/Materials/ConcreteMat"))
+    cubes.append(make_cube("Floor_Bathroom", 8.0, 0.0, 0.0, 4.0, 0.80, 1.50, "/House/Materials/ConcreteMat"))
+
+    # Wall A (Z = 0.0 to 0.20)
+    cubes.append(make_cube("Wall_A_1", 0.0, 0.50, 0.0, 1.0, 2.50, 0.20, "/House/Materials/ConcreteMat"))
+    cubes.append(make_cube("Wall_A_2_above", 1.0, 2.50, 0.0, 2.0, 0.50, 0.20, "/House/Materials/ConcreteMat"))
+    cubes.append(make_cube("Wall_A_3", 3.0, 0.50, 0.0, 2.0, 2.50, 0.20, "/House/Materials/ConcreteMat"))
+    cubes.append(make_cube("Wall_A_4_below", 5.0, 0.90, 0.0, 2.0, 0.60, 0.20, "/House/Materials/ConcreteMat"))
+    cubes.append(make_cube("Wall_A_4_above", 5.0, 2.30, 0.0, 2.0, 0.70, 0.20, "/House/Materials/ConcreteMat"))
+    cubes.append(make_cube("Wall_A_5", 7.0, 0.80, 0.0, 5.0, 2.20, 0.20, "/House/Materials/ConcreteMat"))
+
+    # Wall B (Z = 3.80 to 4.00)
+    cubes.append(make_cube("Wall_B_Solid", 0.0, 0.50, 3.80, 12.0, 2.50, 0.20, "/House/Materials/ConcreteMat"))
+
+    # Front Wall (X = 0.0 to 0.20)
+    cubes.append(make_cube("Wall_Front_1", 0.0, 0.50, 0.20, 0.20, 2.50, 0.80, "/House/Materials/ConcreteMat"))
+    cubes.append(make_cube("Wall_Front_2_above", 0.0, 2.50, 1.00, 0.20, 0.50, 2.00, "/House/Materials/ConcreteMat"))
+    cubes.append(make_cube("Wall_Front_3", 0.0, 0.50, 3.00, 0.20, 2.50, 0.80, "/House/Materials/ConcreteMat"))
+
+    # Back Wall (X = 11.80 to 12.00)
+    cubes.append(make_cube("Wall_Back_Solid", 11.80, 0.90, 0.20, 0.20, 2.10, 3.60, "/House/Materials/ConcreteMat"))
+
+    # Interior Partitions (Grid 3)
+    cubes.append(make_cube("Part_1", 7.90, 0.90, 0.20, 0.10, 2.10, 0.20, "/House/Materials/ConcreteMat"))
+    cubes.append(make_cube("Part_2_above", 7.90, 2.90, 0.40, 0.10, 0.10, 0.80, "/House/Materials/ConcreteMat"))
+    cubes.append(make_cube("Part_3", 7.90, 0.90, 1.20, 0.10, 2.10, 0.80, "/House/Materials/ConcreteMat"))
+    cubes.append(make_cube("Part_4_above", 7.90, 2.90, 2.00, 0.10, 0.10, 0.80, "/House/Materials/ConcreteMat"))
+    cubes.append(make_cube("Part_5", 7.90, 0.90, 2.80, 0.10, 2.10, 1.00, "/House/Materials/ConcreteMat"))
+
+    # Bathroom / Dressing Wall
+    cubes.append(make_cube("Part_Bath_Dress", 8.00, 0.90, 1.45, 3.80, 2.10, 0.10, "/House/Materials/ConcreteMat"))
+
+    # Roof Slab
+    cubes.append(make_cube("Roof_Slab", -0.20, 3.00, -0.20, 12.40, 0.20, 4.40, "/House/Materials/ConcreteMat"))
+
+    # Parapet Walls
+    cubes.append(make_cube("Parapet_A", -0.20, 3.20, -0.20, 12.40, 1.57, 0.20, "/House/Materials/ConcreteMat"))
+    cubes.append(make_cube("Parapet_B", -0.20, 3.20, 4.00, 12.40, 1.57, 0.20, "/House/Materials/ConcreteMat"))
+    cubes.append(make_cube("Parapet_Front", -0.20, 3.20, 0.00, 0.20, 1.57, 4.00, "/House/Materials/ConcreteMat"))
+    cubes.append(make_cube("Parapet_Back", 12.00, 3.20, 0.00, 0.20, 1.57, 4.00, "/House/Materials/ConcreteMat"))
+
+    # External Stairs
+    for i in range(15):
+        x0 = 9.0 + i * 0.20
+        y0 = 0.0
+        z0 = -1.00
+        dx = 0.20
+        dy = (i + 1) * 0.20
+        dz = 1.00
+        cubes.append(make_cube(f"Stair_Step_{i}", x0, y0, z0, dx, dy, dz, "/House/Materials/StairMat"))
+
+    # Stair Railing Balusters
+    for i in range(14):
+        x0 = 9.10 + i * 0.20
+        y0 = (i + 1) * 0.20
+        z0 = -0.95
+        dx = 0.03
+        dy = 0.90
+        dz = 0.03
+        cubes.append(make_cube(f"Stair_Picket_{i}", x0, y0, z0, dx, dy, dz, "/House/Materials/FrameMat"))
+
+    # Top Landing Railing
+    cubes.append(make_cube("Top_Landing_Post_1", 12.0, 3.20, -1.00, 0.05, 0.90, 0.05, "/House/Materials/FrameMat"))
+    cubes.append(make_cube("Top_Landing_Post_2", 12.0, 3.20, 0.00, 0.05, 0.90, 0.05, "/House/Materials/FrameMat"))
+    cubes.append(make_cube("Top_Landing_Rail", 12.0, 4.10, -1.00, 0.05, 0.05, 1.00, "/House/Materials/FrameMat"))
+
+    # Door / Window Details
+    # Front Sliding Door
+    cubes.append(make_cube("Front_Frame_L", 0.08, 0.50, 1.00, 0.04, 2.00, 0.04, "/House/Materials/FrameMat"))
+    cubes.append(make_cube("Front_Frame_R", 0.08, 0.50, 2.96, 0.04, 2.00, 0.04, "/House/Materials/FrameMat"))
+    cubes.append(make_cube("Front_Frame_T", 0.08, 2.46, 1.00, 0.04, 0.04, 2.00, "/House/Materials/FrameMat"))
+    cubes.append(make_cube("Front_Frame_B", 0.08, 0.50, 1.00, 0.04, 0.04, 2.00, "/House/Materials/FrameMat"))
+    cubes.append(make_cube("Front_Glass_1", 0.09, 0.52, 1.02, 0.02, 1.94, 0.97, "/House/Materials/GlassMat"))
+    cubes.append(make_cube("Front_Glass_2", 0.09, 0.52, 1.99, 0.02, 1.94, 0.97, "/House/Materials/GlassMat"))
+
+    # Side Sliding Door
+    cubes.append(make_cube("Side_Frame_L", 1.00, 0.50, 0.08, 0.04, 2.00, 0.04, "/House/Materials/FrameMat"))
+    cubes.append(make_cube("Side_Frame_R", 2.96, 0.50, 0.08, 0.04, 2.00, 0.04, "/House/Materials/FrameMat"))
+    cubes.append(make_cube("Side_Frame_T", 1.00, 2.46, 0.08, 2.00, 0.04, 0.04, "/House/Materials/FrameMat"))
+    cubes.append(make_cube("Side_Frame_B", 1.00, 0.50, 0.08, 2.00, 0.04, 0.04, "/House/Materials/FrameMat"))
+    cubes.append(make_cube("Side_Glass_1", 1.02, 0.52, 0.09, 0.97, 1.94, 0.02, "/House/Materials/GlassMat"))
+    cubes.append(make_cube("Side_Glass_2", 1.99, 0.52, 0.09, 0.97, 1.94, 0.02, "/House/Materials/GlassMat"))
+
+    # Side Window
+    cubes.append(make_cube("Win_Frame_L", 5.00, 1.50, 0.08, 0.04, 0.80, 0.04, "/House/Materials/FrameMat"))
+    cubes.append(make_cube("Win_Frame_R", 6.96, 1.50, 0.08, 0.04, 0.80, 0.04, "/House/Materials/FrameMat"))
+    cubes.append(make_cube("Win_Frame_T", 5.00, 2.26, 0.08, 2.00, 0.04, 0.04, "/House/Materials/FrameMat"))
+    cubes.append(make_cube("Win_Frame_B", 5.00, 1.50, 0.08, 2.00, 0.04, 0.04, "/House/Materials/FrameMat"))
+    cubes.append(make_cube("Win_Glass", 5.02, 1.52, 0.09, 1.94, 0.74, 0.02, "/House/Materials/GlassMat"))
+
+    usda_body = "".join(cubes)
+    usda_footer = "}\n"
+
+    usda_path = "house.usda"
+    with open(usda_path, "w", encoding="utf-8") as f:
+        f.write(usda_header + usda_body + usda_footer)
+
+    usdz_path = "modern_house.usdz"
+    with zipfile.ZipFile(usdz_path, "w", zipfile.ZIP_STORED) as zip_file:
+        zip_file.write(usda_path, "house.usda")
+
+    os.remove(usda_path)
+
+if __name__ == "__main__":
+    generate_model()
